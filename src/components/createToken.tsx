@@ -19,6 +19,7 @@ export default function CreateToken() {
     decimals: 9,
     supply: '',
     imageFile: null as File | null,
+    videoFile: null as File | null,
   });
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,8 +35,9 @@ export default function CreateToken() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData((prev) => ({ ...prev, imageFile: e.target.files![0] }));
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      setFormData((prev) => ({ ...prev, [name]: files[0] }));
     }
   };
 
@@ -67,10 +69,10 @@ export default function CreateToken() {
   };
 
   const handleSubmit = async () => {
-    const { name, symbol, description, decimals, supply, imageFile } = formData;
+    const { name, symbol, description, decimals, supply, imageFile, videoFile } = formData;
 
-    if (!name || !symbol || !description || !imageFile || !supply) {
-      setStatus('❌ Please fill in all fields and upload an image.');
+    if (!name || !symbol || !description || !imageFile || !videoFile || !supply) {
+      setStatus('❌ Please fill in all fields and upload an image and video.');
       return;
     }
 
@@ -79,12 +81,12 @@ export default function CreateToken() {
 
     try {
       const imageUri = await uploadToPinata(imageFile);
+      const videoUri = await uploadToPinata(videoFile);
 
-      const metadata = { name, symbol, description, image: imageUri };
+      const metadata = { name, symbol, description, image: imageUri, video: videoUri };
       const metadataUri = await uploadMetadataToPinata(metadata);
 
       const umi = umiWithCurrentWalletAdapter().use(mplTokenMetadata());
-
       const mintKeypair = umi.eddsa.generateKeypair();
       const mintSigner = createSignerFromKeypair(umi, mintKeypair);
 
@@ -115,6 +117,12 @@ export default function CreateToken() {
       const tx = await createFungibleIx.add(createTokenIx).add(mintTokensIx).sendAndConfirm(umi);
       const signature = base58.deserialize(tx.signature)[0];
 
+      await axios.post('/api/save-token', {
+        mint: mintSigner.publicKey.toString(),
+        amount: supply,
+        videoUri,
+      });
+
       setStatus(
         `✅ Token Created!\n\n🔗 Tx: https://explorer.solana.com/tx/${signature}?cluster=devnet\n🔗 Mint Address: https://explorer.solana.com/address/${mintSigner.publicKey}?cluster=devnet`
       );
@@ -127,7 +135,12 @@ export default function CreateToken() {
 
   return (
     <div className="max-w-xl mx-auto mt-10 p-6 border rounded-lg shadow">
-      <h2 className="text-xl font-semibold mb-4">Create SPL Token</h2>
+      <h2 className="text-xl font-semibold mb-4">
+        VideoToken LaunchPad
+      </h2>
+      <h3 className='text-lg font-semibold mb-4'>
+        Lean Test
+      </h3>
       <input
         type="text"
         name="name"
@@ -167,9 +180,35 @@ export default function CreateToken() {
         value={formData.supply}
         onChange={handleChange}
       />
+      <div>
+        <p className="text-sm text-gray-500 mb-2">
+          Upload an image (PNG/JPEG) and a video (MP4/WebM/OGG) for the token.
+        </p>
+        <p className="text-sm text-gray-500 mb-4">
+          Note: The image and video will be uploaded to Pinata and linked in the token metadata.
+        </p>
+      </div>
       <input
         type="file"
+        name="imageFile"
+        placeholder='Upload Image (PNG/JPEG)'
         accept="image/png, image/jpeg"
+        className="mb-3"
+        onChange={handleFileChange}
+      />
+      <div>
+        <p className="text-sm text-gray-500 mb-2">
+          Upload a video (MP4/WebM/OGG) for the token.
+        </p>
+        <p className="text-sm text-gray-500 mb-4">
+          Note: The video will be uploaded to Pinata and linked in the token metadata.
+        </p>
+      </div>
+      <input
+        type="file"
+        name="videoFile"
+        placeholder='Upload Video (MP4/WebM/OGG)'
+        accept="video/mp4,video/webm,video/ogg"
         className="mb-3"
         onChange={handleFileChange}
       />
