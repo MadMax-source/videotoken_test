@@ -19,7 +19,8 @@ interface UmiState {
 
 const useUmiStore = create<UmiState>()((set, get) => ({
   // Replace URI with either hardcode, a const variable, or .env value
-  umi: createUmi("http://api.devnet.solana.com").use(
+  //http://api.devnet.solana.com
+  umi: createUmi("https://mainnet.helius-rpc.com/?api-key=77aae9b3-ad37-4523-8caf-dea409d5519e").use(
     signerIdentity(
       createNoopSigner(publicKey("11111111111111111111111111111111"))
     )
